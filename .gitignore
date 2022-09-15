@@ -72,3 +72,9 @@ Plugins/*/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+Source/EducationalProject/EducationalProjectCharacter.cpp
+Source/EducationalProject/EducationalProjectCharacter.h
+Source/EducationalProject/EducationalProjectHUD.cpp
+Source/EducationalProject/EducationalProjectHUD.h
+Source/EducationalProject/EducationalProjectProjectile.cpp
+Source/EducationalProject/EducationalProjectProjectile.h
