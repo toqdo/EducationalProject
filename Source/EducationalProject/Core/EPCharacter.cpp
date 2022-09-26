@@ -4,6 +4,7 @@
 #include "EPCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "EPProjectile.h"
+#include "Blueprint/UserWidget.h"
 
 // Sets default values
 AEPCharacter::AEPCharacter()

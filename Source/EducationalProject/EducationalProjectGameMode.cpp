@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EducationalProjectGameMode.h"
-#include "EducationalProjectHUD.h"
 #include "EducationalProjectCharacter.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -13,5 +12,5 @@ AEducationalProjectGameMode::AEducationalProjectGameMode()
 	DefaultPawnClass = PlayerPawnClassFinder.Class;
 
 	// use our custom HUD class
-	HUDClass = AEducationalProjectHUD::StaticClass();
+//	HUDClass = AEducationalProjectHUD::StaticClass();
 }
