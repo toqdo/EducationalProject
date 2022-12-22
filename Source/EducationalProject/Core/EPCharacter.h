@@ -4,13 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "GenericTeamAgentInterface.h"
+#include "../PlayerTeam.h"
 #include "EPCharacter.generated.h"
 
 class UCameraComponent;
 class AEPProjectile;
 
 UCLASS()
-class EDUCATIONALPROJECT_API AEPCharacter : public ACharacter
+class EDUCATIONALPROJECT_API AEPCharacter : public ACharacter, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 
@@ -41,7 +43,30 @@ public:
 
 	void Trace();
 
+	float GetHealth() const;
+
+	float GetMaxHealth() const;
+
+	int32 GetAmmo() const;
+
+	int32 GetMaxAmmo() const;
+
+	UFUNCTION()
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
 	const AActor* GetCurrentTarget();
+
+	void SetHealth(float NewHealth);
+
+	void AffectHealth(int32 Intensity);
+
+	void AffectAmmo(int32 Intensity);
+
+	UFUNCTION()
+	void OnCapsuleHit(UPrimitiveComponent* HitComponent,
+			AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	virtual FGenericTeamId GetGenericTeamId() const override;
 
 protected:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
@@ -56,5 +81,22 @@ protected:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AEPProjectile> ProjectileClass;
 
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	float Health;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	float MaxHealth = 100;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	int32 Ammo;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	int32 MaxAmmo = 10;
+
 	AActor* CurrentTarget;
+
+private:
+	AActor* LastHitActor;
+
+	FPlayerTeamID TeamID;
 };

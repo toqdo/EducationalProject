@@ -5,6 +5,9 @@
 #include "EPCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "../AIEnemy.h"
+#include "Kismet/GameplayStatics.h"
+
 
 // Sets default values
 AEPProjectile::AEPProjectile()
@@ -22,6 +25,8 @@ AEPProjectile::AEPProjectile()
 	ProjectileMovementComponent->SetUpdatedComponent(GetRootComponent());
 
 	InitialLifeSpan = 10.0f;
+
+	SpiralMultiplier = 0.0f;
 }
 
 // Called when the game starts or when spawned
@@ -29,7 +34,7 @@ void AEPProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
-	CapsuleComponent->OnComponentHit.AddDynamic(this, &AEPProjectile::OnCapsuleHit);
+	CapsuleComponent->OnComponentHit.AddUniqueDynamic(this, &AEPProjectile::OnCapsuleHit); 
 	
 	if (EPCharacter && EPCharacter->GetCurrentTarget())
 	{
@@ -50,6 +55,11 @@ void AEPProjectile::OnCapsuleHit(UPrimitiveComponent* HitComponent,
 {
 	if (OtherActor != this && OtherComp != HitComponent)
 	{
+		if (OtherActor != GetOwner())
+		{
+			UGameplayStatics::ApplyDamage(OtherActor, 20.f, GetOwner()->GetInstigatorController(), this, TSubclassOf<UDamageType>(UDamageType::StaticClass()));
+		}
+
 		Destroy();
 
 		if (GEngine)
@@ -72,5 +82,16 @@ void AEPProjectile::Tick(float DeltaTime)
 		ProjectileMovementComponent->HomingTargetComponent = EPCharacter->GetCurrentTarget()->GetRootComponent();
 		ProjectileMovementComponent->bIsHomingProjectile = true;
 	}
+
+	float TimeSeconds = GetWorld()->GetTimeSeconds();
+	float YCoord = FMath::Cos(TimeSeconds * 2.0f);
+	float ZCoord = FMath::Sin(TimeSeconds * 2.0f);
+
+	float ValueToClamp = DeltaTime * 100.0f + SpiralMultiplier;
+	SpiralMultiplier = FMath::Clamp(ValueToClamp, 0.0f, 30.0f);
+
+	FVector Vector(0.0f, SpiralMultiplier * YCoord, SpiralMultiplier * ZCoord);
+
+	StaticMeshComponent->SetRelativeLocation(Vector);
 }
 

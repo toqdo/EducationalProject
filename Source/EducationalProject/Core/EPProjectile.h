@@ -42,4 +42,7 @@ public:
 
 
 	AEPCharacter* EPCharacter;
+
+private:
+	float SpiralMultiplier;
 };

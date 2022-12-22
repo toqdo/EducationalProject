@@ -4,7 +4,13 @@
 #include "EPCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "EPProjectile.h"
+#include "Components/CapsuleComponent.h"
+#include "EPEnemy.h"
 #include "Blueprint/UserWidget.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "DrawDebugHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AEPCharacter::AEPCharacter()
@@ -22,6 +28,7 @@ AEPCharacter::AEPCharacter()
 
 	MuzzleSocketComponent = CreateDefaultSubobject<USceneComponent>(TEXT("MuzzleSocketComponent"));
 	MuzzleSocketComponent->SetupAttachment(GunMeshComponent);
+
 }
 
 // Called when the game starts or when spawned
@@ -30,6 +37,49 @@ void AEPCharacter::BeginPlay()
 	Super::BeginPlay();
 	
 	GunMeshComponent->AttachToComponent(GetMesh(), FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
+
+	GetCapsuleComponent()->OnComponentHit.AddUniqueDynamic(this, &AEPCharacter::OnCapsuleHit);
+
+	Health = MaxHealth;
+	Ammo = MaxAmmo;
+}
+
+void AEPCharacter::OnCapsuleHit(UPrimitiveComponent* HitComponent,
+	AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	DrawDebugPoint(GetWorld(), Hit.ImpactPoint, 5.0f, FColor::Red, true);
+
+	if (OtherActor->GetClass()->IsChildOf(AEPEnemy::StaticClass()))
+	{
+		if (LastHitActor != OtherActor)
+		{
+			AEPEnemy* Enemy = Cast<AEPEnemy>(OtherActor);
+			Enemy->Attack();
+
+			FTimerHandle TimerHandle;
+
+			GetWorldTimerManager().SetTimer(
+				TimerHandle,
+				FTimerDelegate::CreateLambda(
+					[WeakCharacter = MakeWeakObjectPtr(this), OtherActor]()
+					{
+						if (WeakCharacter.IsValid())
+						{
+							UGameplayStatics::ApplyDamage(WeakCharacter.Get(), 10.f, OtherActor->GetOwner()->GetInstigatorController(), OtherActor, TSubclassOf<UDamageType>(UDamageType::StaticClass()));
+
+							FVector Impulse = UKismetMathLibrary::GetDirectionUnitVector(OtherActor->GetActorLocation(), WeakCharacter->GetActorLocation());
+							Impulse *= 1'000'000.f;
+							WeakCharacter->GetCharacterMovement()->AddImpulse(Impulse);
+						}
+					}
+				),
+				1.f,
+				false
+			);
+			UE_LOG(LogTemp, Warning, TEXT("Some warning message %f"), Health);
+		}
+		LastHitActor = OtherActor;
+	}
 }
 
 // Called every frame
@@ -37,6 +87,16 @@ void AEPCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+}
+
+float AEPCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
+{
+	if (Health > 0.f)
+	{
+		Health -= DamageAmount;
+	}
+
+	return DamageAmount;
 }
 
 // Called to bind functionality to input
@@ -90,15 +150,20 @@ void AEPCharacter::Trace()
 
 void AEPCharacter::Fire()
 {
-	FVector SpawnLocation = MuzzleSocketComponent->GetComponentLocation();
-	FRotator SpawnRotation = Controller->GetControlRotation();
+	if (Ammo)
+	{
+		FVector SpawnLocation = MuzzleSocketComponent->GetComponentLocation();
+		FRotator SpawnRotation = Controller->GetControlRotation();
 
-	FTransform ActorTransform(SpawnRotation, SpawnLocation);
+		FTransform ActorTransform(SpawnRotation, SpawnLocation);
 
-	AEPProjectile* Projectile = GetWorld()->SpawnActorDeferred<AEPProjectile>(ProjectileClass, ActorTransform, this, 
-		GetInstigator(), ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding);
-	Projectile->EPCharacter = this;
-	Projectile->FinishSpawning(ActorTransform);
+		AEPProjectile* Projectile = GetWorld()->SpawnActorDeferred<AEPProjectile>(ProjectileClass, ActorTransform, this,
+			GetInstigator(), ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding);
+		Projectile->EPCharacter = this;
+		Projectile->FinishSpawning(ActorTransform);
+
+		--Ammo;
+	}
 }
 
 void AEPCharacter::MoveForward(float Value)
@@ -140,4 +205,44 @@ void AEPCharacter::LookRight(float Value)
 const AActor* AEPCharacter::GetCurrentTarget()
 {
 	return CurrentTarget;
+}
+
+float AEPCharacter::GetHealth() const
+{
+	return Health;
+}
+
+float AEPCharacter::GetMaxHealth() const
+{
+	return MaxHealth;
+}
+
+int32 AEPCharacter::GetAmmo() const
+{
+	return Ammo;
+}
+
+int32 AEPCharacter::GetMaxAmmo() const
+{
+	return MaxAmmo;
+}
+
+void AEPCharacter::SetHealth(float NewHealth)
+{
+	Health = FMath::Clamp(NewHealth, 0.f, MaxHealth);
+}
+
+void AEPCharacter::AffectHealth(int32 Intensity)
+{
+	SetHealth(Health + Intensity);
+}
+
+void AEPCharacter::AffectAmmo(int32 Intensity)
+{
+	Ammo = FMath::Clamp(Intensity + Ammo, 0, MaxAmmo);
+}
+
+FGenericTeamId AEPCharacter::GetGenericTeamId() const
+{
+	return TeamID.GetId();
 }
